@@ -1,0 +1,21 @@
+enum STATUS {
+  OK
+  NOT_OK
+}
+
+Relation BookUser @condition(User.id = Book.authorId) {
+  models: [Book, User]
+  type: MANY_TO_ONE
+}
+
+model Book @sql("SELECT * FROM MyBooks") {
+  id: INTEGER!
+  book_status: STATUS
+  user: User @relation(BookUser)
+}
+
+model User @sql("SELECT * FROM Users") {
+  id: INTEGER!
+  book_status: STATUS
+  books: Book[] @relation(BookUser)
+}
