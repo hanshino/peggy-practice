@@ -1,5 +1,5 @@
 start
-= (__ @declare_grammar __)+
+= (__ @(declare_grammar/comment) __)+
 
 declare_grammar
 = reserved:identifier
@@ -24,9 +24,9 @@ __ '}' {
 decorator_statement
 = '@' key:identifier
 value:(
-	__ '('
+	__ bracket_start
 	__ @decorator_inner
-	__ ')'
+	__ bracket_end
 )? {
 	return {
 		key,
@@ -35,7 +35,11 @@ value:(
 }
 
 decorator_inner
-= function_call/equivalent/literal_string/attribute_assignment/identifier
+= equivalent
+/ attribute_assignment
+/ literal_string
+/ content:$(not_bracket_content / content_of_bracket)*
+/ identifier
 
 key_value_pair
 = key:identifier
@@ -66,7 +70,7 @@ array_symbol
 
 attribute_assignment "屬性指定"
 = key:identifier
-__ '='
+__ ':'
 __ value:(literal_string/array) {
 	return {
 		key,
@@ -90,20 +94,32 @@ column_with_table "資料表欄位"
 	}
 }
 
-function_call "函式呼叫"
-= method:identifier
-__ '('
-__ head:argument
-__ tail:(__ ',' __ @argument)*
-__ ')' {
+comment
+= comment_start comment:accepted_all {
 	return {
-		method,
-		arguments: [
-			head,
-			...tail,
-		],
+		type: 'comment',
+		comment: comment.trim(),
 	}
 }
+
+comment_start
+= "//" / "#"
+
+content_of_bracket "括號內容"
+= bracket_start
+__ content:$(not_bracket_content / content_of_bracket)*
+__ bracket_end {
+	return content
+}
+
+not_bracket_content
+= $(!bracket_start !bracket_end .)
+
+bracket_start "括號開始"
+= '('
+
+bracket_end "括號結束"
+= ')'
 
 argument "函式參數"
 = __ value:element {
@@ -135,13 +151,13 @@ accepted_all
 	return text()
 }
 
-identifier
+identifier "識別字"
 = [a-zA-Z_]+ {return text()}
 
-_
+_ "空白"
 = whitespace+
 
-__
+__ "選填空白"
 = whitespace*
 
 whitespace

@@ -1,8 +1,10 @@
+// status is a custom enum
 enum STATUS {
   OK
   NOT_OK
 }
 
+# This is a comment
 Relation BookUser @condition(User.id = Book.authorId) {
   models: [Book, User]
   type: MANY_TO_ONE
@@ -29,10 +31,12 @@ model User {
 	
 	total_spent: Integer
 		@expr(array_sum(orders, total_price))
-    @primary
+		@primary
+
+  totalprice: Integer @expr(IF(totalprice >= 150000, 'High Value', 'Low Value'))
 }
 
-type Book @model(sql="select * from (values (1, 'book1', 1), (2, 'book2', 2), (3, 'book3', 3)) book(id, name, authorId)") {
+type Book @model(sql:"select * from (values (1, 'book1', 1), (2, 'book2', 2), (3, 'book3', 3)) book(id, name, authorId)") {
 	id: String
 	name: String
 	author: User @relationship(BookUser)
