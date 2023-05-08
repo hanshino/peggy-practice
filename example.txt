@@ -10,12 +10,30 @@ Relation BookUser @condition(User.id = Book.authorId) {
 
 model Book @sql("SELECT * FROM MyBooks") {
   id: INTEGER!
-  book_status: STATUS
-  user: User @relation(BookUser)
+  book_status: STATUS?
+	user: User @relation(BookUser) @a
+  posts: Post[]!
+	totalprice: Integer
 }
 
 model User @sql("SELECT * FROM Users") {
   id: INTEGER!
   book_status: STATUS
   books: Book[] @relation(BookUser)
+}
+
+model User {
+	id: Varchar @id
+	name: Varchar
+	orders: Order[] @relation(Book)
+	
+	total_spent: Integer
+		@expr(array_sum(orders, total_price))
+    @primary
+}
+
+type Book @model(sql="select * from (values (1, 'book1', 1), (2, 'book2', 2), (3, 'book3', 3)) book(id, name, authorId)") {
+	id: String
+	name: String
+	author: User @relationship(BookUser)
 }

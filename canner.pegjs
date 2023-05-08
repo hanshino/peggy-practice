@@ -1,155 +1,148 @@
-start = (@defination_statement __)*
+start
+= (__ @declare_grammar __)+
 
-defination_statement
-= enum_defination_statement
-/ model_defination_statement
-/ relation_defination_statement
+declare_grammar
+= reserved:identifier
+__ name:identifier
+__ decorators:(decorator_statement)*
+__ '{'
+__ body:(@(key_value_pair/identifier) __)+
+__ '}' {
+	if (!Array.isArray(decorators)) {
+		decorators = [decorators].filter(item => item)
+	}
 
-model_defination_statement
-= model __ name:variable __ sqlStat:sql_decorator_statement __ "{"
-  __ stats:(model_field_statement)+ "}" {
 	return {
-		type: "model",
+		reserved,
 		name,
-		sql: sqlStat.sql,
-		fields: stats
+		decorators,
+		body,
 	}
 }
 
-model_field_statement
-= stat:(
-	model_field_relation_defination_statement
-/ model_field_type_defination_statement
-/ model_field_enum_defination_statement
-) {
-	return stat
-}
 
-model_field_type_defination_statement
-= key:variable __ ":" __ value:variable required:"!"? __ {
-	return { type: "type", key, value, required: !!required }
-}
-
-model_field_enum_defination_statement
-= key:variable __ ":" __ value:variable __ {
-	return { type: "enum", key, value }
-}
-
-model_field_relation_defination_statement
-= key:variable
-__ ":"
-__ value:variable is_array:model_array_symbol
-__ relation:model_relation_decorator_statement __ {
+decorator_statement
+= '@' key:identifier
+value:(
+	__ '('
+	__ @decorator_inner
+	__ ')'
+)? {
 	return {
-		type: "relation",
 		key,
 		value,
-		relation,
-		array: !!is_array
 	}
 }
 
-model_array_symbol
-= "[]"?
+decorator_inner
+= function_call/equivalent/literal_string/attribute_assignment/identifier
 
-model_relation_decorator_statement
-= relation_decorator __ "(" __ relation:variable __ ")" {
-	return relation
-}
+key_value_pair
+= key:identifier
+__ ':'
+__ value:element symbol:(@symbol/array_symbol)* 
+__ decorators:(@decorator_statement __)*{
+	if (!Array.isArray(decorators)) {
+		decorators = [decorators].filter(item => item)
+	}
 
-relation_decorator
-= "@relation"i
+	if (!Array.isArray(symbol)) {
+		symbol = [symbol].filter(item => item)
+	}
 
-relation_defination_statement
-= relation __ name:variable __ condStat:condition_decorator_statement __ "{"
-  attrs:(__ @(relation_model_statement / relation_type_statement) __)+ "}" {
 	return {
-		type: "relation",
-		name,
-		condition: condStat,
-		attrs
+		key,
+		value,
+		symbol,
+		decorators,
 	}
 }
 
-relation_model_statement
-= "models" __ ":" __ "[" __ head:variable __ tail:("," __ @variable __)* "]" {
+symbol
+= [!?]
+
+array_symbol
+= '[]'
+
+attribute_assignment "屬性指定"
+= key:identifier
+__ '='
+__ value:(literal_string/array) {
 	return {
-		type: "models",
-		value: [head, ...tail]
+		key,
+		value,
 	}
 }
 
-relation_type_statement
-= "type" __ ":" __ type:variable {
+equivalent "等式敘述"
+= first:column_with_table __ '=' __ second:column_with_table {
+	return [
+		first,
+		second,
+	]
+}
+
+column_with_table "資料表欄位"
+= '"'? table:identifier '"'? dot '"'? column:identifier '"'? {
 	return {
-		type: "type",
-		value: type.trim()
+		table,
+		column,
 	}
 }
 
-sql_decorator_statement
-= sql_decorator __ "(\"" sql:sql "\")" {
-  return { sql }
+function_call "函式呼叫"
+= method:identifier
+__ '('
+__ head:argument
+__ tail:(__ ',' __ @argument)*
+__ ')' {
+	return {
+		method,
+		arguments: [
+			head,
+			...tail,
+		],
+	}
 }
 
-sql
-= [^"]* {
+argument "函式參數"
+= __ value:element {
+	return value
+}
+
+dot
+= '.'
+
+array
+= '['
+__ head:element
+__ tail:(__ ',' __ @element)*
+__ ']' {
+	return {
+		head,
+		...tail,
+	}
+}
+
+element
+= identifier/array/literal_string
+
+literal_string
+= '"' str:[^"]* '"' {return str.join("")}
+
+accepted_all
+= [^\n\r]* {
 	return text()
 }
 
-sql_decorator
-= "@sql"i
-
-condition_decorator_statement
-= condition_decorator 
-__ "(" leftTable:variable "." leftCol:variable __ "=" __ rightTable:variable "." rightCol:variable ")" {
-	return {
-		leftTable,
-		leftCol,
-		rightTable,
-		rightCol
-	}
-}
-
-condition_decorator
-= "@condition"i
-
-enum_defination_statement
-= enum __ name:variable __ "{" __ head:enum_value __ tail:( __ @enum_value __)* "}" {
-	return {
-		type: "enum",
-		name,
-		values: [head, ...tail]
-	}
-}
-
-enum_value
-= variable
-
-variable
+identifier
 = [a-zA-Z_]+ {return text()}
 
-reserved
-= enum / model / relation
-
-enum
-= "enum"i
-
-model
-= "model"i
-
-relation
-= "relation"i
-
 _
-= whitespace+ {
-	return null
-}
+= whitespace+
 
 __
-= whitespace* {
-	return null
-}
+= whitespace*
 
 whitespace
 = [ \t\n\r]
